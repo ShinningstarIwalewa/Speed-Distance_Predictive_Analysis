@@ -1,0 +1,298 @@
+---
+title: "Speed&Distance Predictive_Analysis"
+author: "Akolade Sofiyyah Iwalewa,22201441"
+date: "2022-11-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction to data set
+The data gives the speed of cars (mph) and the distances (ft) taken to stop. The cars data set that comes with R by default
+
+```{r}
+# Having an overview of the data set
+head(cars)
+```
+
+```{r}
+# Checking the dimension of the data
+dim(cars)
+```
+
+This data set consists of 50 observations (rows) and 2 variables(columns) – distance and speed.
+
+```{r}
+# creating a scatter plot to Visualise the linear relationship between the predictor and the response variable
+pairs(cars)
+```
+
+There exist a positive relationship between the distance and speed.
+
+```{r}
+# Calculating the correlation co-efficient that measures the strength of the linear relationship between the predictor and response variable.
+cor(cars)
+```
+0.80 indicates a strong linear relationship between distance and speed.
+
+```{r}
+# Getting the distribution of the variables by numerical values.
+summary(cars)
+```
+
+```{r}
+# Getting the distribution of the variables by plotting graphs.
+par(mfrow=c(2, 2))
+boxplot(cars$speed, main="Speed")
+boxplot(cars$dist, main="Distance")
+plot(density(cars$speed), main="Density Plot: Speed")
+polygon(density(cars$speed), col="red")
+plot(density(cars$dist), main="Density Plot: Distance")
+polygon(density(cars$dist), col="red")
+```
+
+The minimum speed recorded was 4 km/h and the maximum speed is 25 km/h. 25% of the car speed fall bellow 12 km/h, 50% of the car speed fall below 15 km/h,75% of the car speed fall below 19 km/h. The minimum distance recorded was 2 km and the maximum distance was 120 km. 25% of the car distance fall below 26 km , 50% of the car distance fall below 36km, 75% of the car distance fall below 56 km. From the box plot, a particular seem to an outlier.
+
+```{r}
+# Checking the distance that is greater 100
+which(cars$dist>100)
+cars[49,]
+```
+
+Car 49 has a distance of 120 km  which is greater than 100
+
+I will be fitting the linear model below: distancei = β0 + β1speedi + i
+
+
+```{r}
+# Fitting the linear model.
+SXX = sum((cars$speed-mean(cars$speed))^2)
+SXY = sum((cars$speed-mean(cars$speed))
+*(cars$dist-mean(cars$dist)))
+beta1 <- SXY / SXX
+beta0 <- mean(cars$dist) - beta1 * mean(cars$speed)
+c(beta0,beta1)
+```
+
+```{r}
+linearMod <- lm(dist ~speed, data=cars)
+linearMod
+```
+
+THe model becomes: distance ˆi = −17.58 + 3.93 × speed
+
+The baseline of 0 mph actually has a negative stopping distance −17.58. Thus we restrict the interpretability of the model to speeds 4.48 (≈ 17.58/3.93) or more mph. This model estimates that increasing the speed by 1 mph will result in an extra 3.93 feet of stopping distance. to aid interpretation of the intercept we can minus the mean
+from the predictor variable speed. This will be 0 when the speedi is at the average speed which is X¯ = 15.4
+
+
+```{r}
+# Substracting the mean from the predictor variable speed
+cars$cen_speed <-cars$speed-mean(cars$speed)
+linearMod <- lm(dist ~cen_speed, data=cars)
+linearMod
+```
+Thus I have my new model to be: distance ˆi = 42.98 + 3.93 × (speedi − average(speed))
+
+
+```{r}
+# Creating a line chart for speed and distance
+plot(cars$speed,cars$dist)
+lines(cars$speed,fitted(linearMod),col="red")
+```
+
+Assumptions of the LS estimators: I will be testing the LS estimators assumptions.
+
+1. It is required there is  zero conditional mean and constant variance (constant variability about the zero mean
+
+```{r}
+# Getting the summary of the residuals
+summary(residuals(linearMod))
+```
+
+```{r}
+#Creating a scatter plot for the residuals
+plot(cars$speed,residuals(linearMod))
+```
+
+Note: To perform model inference (T-test, F-test, CI, PI) the errors must be normally distributed or at least approximately normally distributed
+
+```{r}
+# Creating a box-plot and density plot for the residuals
+par(mfrow=c(2, 1))
+boxplot(residuals(linearMod), main="Residuals")
+plot(density(residuals(linearMod)),
+main="Density Plot: Residuals")
+polygon(density(residuals(linearMod)), col="red")
+```
+
+```{r}
+# Creating a QQ plot
+qqnorm(residuals(linearMod),main="QQ plot",pch=19)
+qqline(residuals(linearMod))
+```
+
+I will be using the Shapiro-Wilk normality test to test for nomality.
+
+```{r}
+residuals(linearMod)
+```
+
+The p-value 0.02 < 0.05 implying that the distribution of the data is significantly different from a normal distribution. Hence, we cannot assume normality.
+
+
+Cooks distance: I will be using the Cooks distance to compute the influence exerted by each data point on the predicted outcome.
+
+```{r}
+cooksd <- cooks.distance(linearMod)
+plot(cooksd, pch="*", cex=2, main="Influential Obs
+by Cooks distance")
+# add cutoff line
+abline(h = 4*mean(cooksd, na.rm=T), col="red")
+# add labels
+text(x=1:length(cooksd)+1, y=cooksd,
+labels=ifelse(cooksd>4*mean(cooksd,
+na.rm=T),names(cooksd),""), col="red")
+```
+
+I will remove the Influential observation (it is likely that it is a typo) a speed of 24 has a typical stopping distance of 40 feet and a distance of 120 feet typically corresponds to a speed of 40
+
+```{r}
+cars[49,]
+cars = cars[-49,]
+linearMod <- lm(dist ~cen_speed, data=cars)
+linearMod
+```
+
+```{r}
+# Check for normaility
+shapiro.test(residuals(linearMod))
+residuals(linearMod)
+```
+
+```{r}
+qqnorm(residuals(linearMod),main="QQ plot",pch=19)
+qqline(residuals(linearMod))
+```
+
+The p-value 0.08 > 0.05 implying that the distribution of the data is not significantly different from a normal distribution. In other words, we can assume normality.
+
+
+Hypothesis testing
+
+
+```{r}
+N = length(cars$cen_speed)
+MSE = sum(linearMod$residuals^2/(N-2))
+SXX = sum((cars$cen_speed-mean(cars$cen_speed))^2)
+VARB0 = MSE*(1/ N + (mean(cars$cen_speed)^{2}/SXX))
+T = (linearMod$coefficients[1]-0)/sqrt(VARB0)
+```
+
+```{r}
+alpha = 0.05
+TDIST = qt(1-alpha/2, N-2)
+PVALUE = 2 *( 1- pt(T, df = N- 2))
+```
+
+At the 5% level of significance, the evidence is not strong enough to indicate that β0 = 0. Indicating that when the speed is at 15.4 (the mean) the stopping distance is non-zero.
+
+```{r}
+N = length(cars$cen_speed)
+MSE = sum(linearMod$residuals^2/(N-2))
+SXX = sum((cars$cen_speed-mean(cars$cen_speed))^2)
+VARB1 = MSE/SXX
+T = (linearMod$coefficients[2]-0)/sqrt(VARB1)
+```
+
+```{r}
+alpha = 0.05
+TDIST = qt(1-alpha/2, N-2)
+PVALUE = 2*(1-pt(T, df = N - 2))
+```
+
+At the 5% level of significance, the evidence is not strong enough to indicate that β1 = 0. Indicating that a relation exists between speed and stopping distance.
+
+```{r}
+MSR = sum((fitted(linearMod) - mean(cars$dist))^2) / 1
+MSE = sum(linearMod$residuals^2/(N-2))
+F = MSR/MSE 
+alpha = 0.05
+FDIST = qf(1-alpha,1,N-2) 
+PVALUE = pf(1-F, 1, N - 2) 
+```
+
+At the 5% level of significance, the evidence is not strong enough to indicate that β1 = 0. Indicating that a relation exists between speed and stopping distance.
+
+
+```{r}
+N = length(cars$cen_speed)
+MSE = sum(linearMod$residuals^2/(N-2))
+SXX = sum((cars$cen_speed-mean(cars$cen_speed))^2)
+VARB0 = MSE*(1/ N + (mean(cars$cen_speed)^{2}/SXX))
+alpha=0.05
+beta0 = linearMod$coefficients[1]
+c(beta0 - qt(1-alpha/2,N-2)*sqrt(VARB0),
+beta0 + qt(1-alpha/2,N-2)*sqrt(VARB0))
+```
+
+We are 95% confident that β0 lies between 38.0 < β0 < 46.1
+
+```{r}
+N = length(cars$cen_speed)
+SSE = sum(linearMod$residuals^2)
+MSE = SSE/(N-2)
+SXX = sum((cars$cen_speed - mean(cars$cen_speed))^2)
+VARB1 = MSE/SXX
+beta1= linearMod$coefficients[2]
+alpha=0.05
+c(beta1 - qt(1-alpha/2,N-2)*sqrt( VARB1),
+beta1 + qt(1-alpha/2,N-2)*sqrt( VARB1))
+```
+
+We are 95% confident that β1 representing the average increase in stopping distance given a one unit increase in speed is between 2.85 and 4.43 feet.
+
+```{r}
+SST = sum((cars$dist-mean(cars$dist))^2)
+SSE = sum(linearMod$residuals^2)
+R2 <- (SST - SSE) /SST 
+R2
+```
+Approximately 64% of the observed variation in stopping distances can be explained by the cars speed.
+
+```{r}
+N = length(cars$cen_speed)
+RMSE = sqrt(SSE/(N-2))
+RMSE
+```
+
+So we can say that the speed accurately predicts distance with about 14 feet error on average.
+
+```{r}
+N = length(cars$cen_speed)
+SXX = sum((cars$cen_speed - mean(cars$cen_speed))^2)
+MSE = SSE/(N-2)
+VAR_Y = MSE*(1/N+(cars$cen_speed-mean(cars$cen_speed))^2/SXX)
+Yhat = fitted(linearMod)
+cbind(Yhat- qt(1-alpha/2,N-2)*sqrt(VAR_Y),
+Yhat + qt(1-alpha/2,N-2)*sqrt(VAR_Y))
+plot(cars$speed,cars$dist,xlab="Speed",ylab="Distance")
+lines(cars$speed,Yhat,col="blue")
+lines(cars$speed,Yhat+qt(1-alpha/2,N-2)*sqrt(VAR_Y),col="red")
+```
+
+```{r}
+N = length(cars$cen_speed)
+SXX = sum((cars$cen_speed - mean(cars$cen_speed))^2)
+MSE = SSE/(N-2)
+Var_E = MSE*(1 + 1/N + (cars$cen_speed-mean(cars$cen_speed))^2/SXX)
+Yhat = fitted(linearMod)
+cbind(Yhat- qt(1-alpha/2,N-2)*sqrt( Var_E),
+Yhat + qt(1-alpha/2,N-2)*sqrt( Var_E))
+plot(cars$speed,cars$dist,xlab="Speed",ylab="Distance")
+lines(cars$speed,Yhat,col="blue")
+lines(cars$speed,Yhat +qt(1-alpha/2,N-2)*sqrt(Var_E),col="red")
+lines(cars$speed,Yhat -qt(1-alpha/2,N-2)*sqrt(Var_E),col="red")
+lines(cars$speed,Yhat-qt(1-alpha/2,N)*sqrt(VAR_Y),col="red")
+```
